@@ -1,10 +1,10 @@
 (() => {
-  const MAIN_ID = 'main';
-  const COLOR_BOX_COUNT = 11;
-  const CENTER_BOX_INDEX = 5;
-  const COLOR_BOX_MIN_HEIGHT = 12;
-  const SCALE_STEPS = [950, 900, 800, 700, 600, 500, 400, 300, 200, 100, 50];
-  let buttonCount = 0;
+  const CONFIG = window.ColorScaleGeneratorConfig;
+
+  const MAIN_ID = CONFIG.mainId;
+  const COLOR_BOX_COUNT = CONFIG.colorBoxCount;
+  const CENTER_BOX_INDEX = CONFIG.centerBoxIndex;
+  const COLOR_BOX_MIN_HEIGHT = CONFIG.colorBoxMinHeight;
 
   const inputStyles = 'border-2 border-transparent shadow-[inset_3px_3px_10px_rgba(0,0,0,0.2)] focus:outline-none focus:shadow focus:shadow-[inset_3px_3px_15px_rgba(0,0,0,0.2)] focus:ring-inset rounded-3xl p-2 max-w-40 min-w-25 xl:w-1/5';
   const actionButtonStyles = 'rounded-2xl px-3 py-1 text-sm bg-white shadow hover:shadow-md active:scale-95 transition cursor-pointer';
@@ -17,149 +17,12 @@
     return input;
   }
 
-  function hexToRgb(hex) {
-    return {
-      r: parseInt(hex.slice(1, 3), 16),
-      g: parseInt(hex.slice(3, 5), 16),
-      b: parseInt(hex.slice(5, 7), 16),
-    };
-  }
+  // Imported pure logic from other files (loaded via separate <script> tags).
+  const ColorUtils = window.ColorScaleGenerator.ColorUtils;
+  const CodeUtils = window.ColorScaleGenerator.CodeUtils;
 
-  function rgbToHex({ r, g, b }) {
-    const toHex = (channel) => channel.toString(16).padStart(2, '0');
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
-  }
-
-  function rgbToHsl({ r, g, b }) {
-    const rNorm = r / 255;
-    const gNorm = g / 255;
-    const bNorm = b / 255;
-    const max = Math.max(rNorm, gNorm, bNorm);
-    const min = Math.min(rNorm, gNorm, bNorm);
-    const delta = max - min;
-    const lightness = (max + min) / 2;
-
-    let hue = 0;
-    if (delta !== 0) {
-      if (max === rNorm) {
-        hue = ((gNorm - bNorm) / delta) % 6;
-      } else if (max === gNorm) {
-        hue = (bNorm - rNorm) / delta + 2;
-      } else {
-        hue = (rNorm - gNorm) / delta + 4;
-      }
-      hue = Math.round(hue * 60);
-      if (hue < 0) hue += 360;
-    }
-
-    const saturation =
-      delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
-
-    return {
-      h: hue,
-      s: Math.round(saturation * 100),
-      l: Math.round(lightness * 100),
-    };
-  }
-
-  function normalizeHexInput(colorValue) {
-    const trimmed = colorValue.trim();
-    if (!trimmed) return null;
-
-    const withHash = trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
-
-    if (/^#[\da-fA-F]{3}$/.test(withHash)) {
-      const r = withHash[1];
-      const g = withHash[2];
-      const b = withHash[3];
-      return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
-    }
-
-    if (/^#[\da-fA-F]{6}$/.test(withHash)) {
-      return withHash.toUpperCase();
-    }
-
-    return null;
-  }
-
-  function mixRgb(source, target, amount) {
-    const mixChannel = (from, to) => Math.round(from + (to - from) * amount);
-    return {
-      r: mixChannel(source.r, target.r),
-      g: mixChannel(source.g, target.g),
-      b: mixChannel(source.b, target.b),
-    };
-  }
-
-  function generateColorScale(baseColorValue, count = COLOR_BOX_COUNT, centerIndex = CENTER_BOX_INDEX) {
-    const normalizedHex = normalizeHexInput(baseColorValue);
-    if (!normalizedHex) {
-      return null;
-    }
-
-    const baseRgb = hexToRgb(normalizedHex);
-    const black = { r: 0, g: 0, b: 0 };
-    const white = { r: 255, g: 255, b: 255 };
-    const maxBlend = 0.75;
-    const colors = [];
-
-    for (let i = 0; i < count; i++) {
-      if (i === centerIndex) {
-        colors.push(normalizedHex);
-        continue;
-      }
-
-      const distance = Math.abs(i - centerIndex);
-      const blendAmount = (distance / centerIndex) * maxBlend;
-      const target = i < centerIndex ? black : white;
-      const mixed = mixRgb(baseRgb, target, blendAmount);
-      colors.push(rgbToHex(mixed));
-    }
-
-    return colors;
-  }
-
-  function paintColorBoxes(colorBoxes, colors) {
-    if (!colors || colors.length !== colorBoxes.length) {
-      return;
-    }
-
-    colorBoxes.forEach((colorBox, index) => {
-      colorBox.style.backgroundColor = colors[index];
-      colorBox.title = colors[index];
-    });
-  }
-
-  function getColorAsFormat(hexColor, format) {
-    const rgb = hexToRgb(hexColor);
-    if (format === 'rgb') {
-      return `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
-    }
-    if (format === 'hsl') {
-      const hsl = rgbToHsl(rgb);
-      return `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`;
-    }
-    return hexColor;
-  }
-
-  function sanitizeName(nameValue) {
-    const cleaned = nameValue
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
-    return cleaned || 'color';
-  }
-
-  function generateCodeLines({ name, colors, format }) {
-    return colors.map((hexColor, index) => {
-      const scale = SCALE_STEPS[index];
-      const formattedColor = getColorAsFormat(hexColor, format);
-      return `--color-${name}-${scale}: ${formattedColor};`;
-    });
-  }
+  const { generateColorScale, paintColorBoxes } = ColorUtils;
+  const { sanitizeName, generateCodeLines } = CodeUtils;
 
   function createCodeModal() {
     const overlay = document.createElement('div');
@@ -301,24 +164,22 @@
         hideFloatingButtons();
     });
 
-    let currentScale = null;
+    let scaleCache = null;
 
     function getCurrentCodeLines(format) {
-      if (!currentScale) {
-        currentScale = generateColorScale(hexBaseInput.value);
+      if (!scaleCache) {
+        scaleCache = generateColorScale(hexBaseInput.value);
       }
-      if (!currentScale) return [];
+      if (!scaleCache) return [];
       const colorName = sanitizeName(nameInput.value);
       return generateCodeLines({
         name: colorName,
-        colors: currentScale,
+        colors: scaleCache,
         format,
       });
     }
 
     addColorButton.addEventListener('click', () => {
-      buttonCount++;
-      console.log(`add color button clicked ${buttonCount} times`);
       onAddSwatch();
     });
 
@@ -341,14 +202,11 @@
 
     hexBaseInput.addEventListener('input', () => {
       const colorScale = generateColorScale(hexBaseInput.value);
-      currentScale = colorScale;
+      scaleCache = colorScale;
       paintColorBoxes(colorBoxes, colorScale);
     });
 
-    nameInput.addEventListener('input', () => {
-      const name = nameInput.value;
-      console.log(name);
-    });
+    // `nameInput` is read on export/code generation, so no work is needed on every keystroke.
 
     const api = {
       swatch,
