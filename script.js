@@ -304,6 +304,9 @@
     let currentScale = null;
 
     function getCurrentCodeLines(format) {
+      if (!currentScale) {
+        currentScale = generateColorScale(hexBaseInput.value);
+      }
       if (!currentScale) return [];
       const colorName = sanitizeName(nameInput.value);
       return generateCodeLines({
@@ -357,9 +360,26 @@
   function init() {
     const main = document.getElementById(MAIN_ID);
     const title = document.createElement('h1');
-    title.textContent = 'Color Scale Generator';
-    title.className = 'text-2xl font-bold self-start pl-4';
-    main.appendChild(title);
+    const logo = document.createElement('img');
+    const header = document.createElement('div');
+    header.className = 'flex self-start gap-2';
+    header.appendChild(logo);
+    header.appendChild(title);
+    logo.src = 'color-scale-generator-logo.png';
+    logo.alt = 'Color Scale Generator Logo';
+    logo.className = 'w-10 h-10';
+    title.className = 'text-2xl font-bold self-center';
+    title.appendChild(document.createTextNode(' Color Scale Generator'));
+
+    const topBar = document.createElement('div');
+    topBar.className = 'w-full flex items-center justify-between gap-4 flex-wrap';
+    const aboutLink = document.createElement('a');
+    aboutLink.href = 'about.html';
+    aboutLink.textContent = 'About';
+    aboutLink.className = `${actionButtonStyles} no-underline text-neutral-800`;
+    topBar.appendChild(header);
+    topBar.appendChild(aboutLink);
+    main.appendChild(topBar);
 
     main.className = 'flex flex-col items-center min-h-screen bg-white p-8 gap-4';
     const modal = createCodeModal();
